@@ -1,13 +1,30 @@
 #!/bin/sh
-# author: William Chang
-# email: william80121@hotmail.com.tw
-# Notification:
+################################################
+# Information                                  #
+################################################
+# File name: raa228926.sh
+# Author: William Chang
+# Email: william80121@hotmail.com.tw
+
+################################################
+# Notification                                 #
+################################################
 # * communication protocol based on PMBus
 # * DMA command codes are keyword to flash FW
-# Process of flash VR controller 
-# 1. Disable packet capture
-# 2. Determine number of NVM slots available 
-# ccommand code define:
+
+################################################
+# Flash process                                #
+################################################
+# 1. Unbind driver 
+# 2. Disable packet capture
+# 3. Determine number of NVM slots available
+# 4. Verify device and file version
+# 5. Read and parse one line from HEX file to device
+# 6. Verify programming success
+
+################################################
+# Command Code                                 #
+################################################
 # Command Name | Code
 # IC_DEVICE_ID: 0xAD
 # MFR_ID: 0x99
@@ -17,14 +34,18 @@
 # DMAFIX: 0xC5
 # DMASEQ: 0xC6
 # DMAADDR: 0xC7
+
+################################################
+# Others                                       #
+################################################
 # if retun none-zero then exit immediately
 set -e 
 # Variable
 # VR controller I2C bus
 BUS=7
 # VR controller slave address
-SLAVE_ADDRESS_1='0x5a'
-SLAVE_ADDRESS_2='0x5b'
+VR_SLAVE_ADDRESS_1='0x5a'
+VR_SLAVE_ADDRESS_2='0x5b'
 # BMC IP
 IP="192.168.123.123"
 LOGOUT=/tmp/RAA228926_VR_FW_Update.log
@@ -33,38 +54,31 @@ LOGOUT=/tmp/RAA228926_VR_FW_Update.log
 #HEXDUMP_TOOL=/usr/local/bin/hexconvert
 #GPIO_TOOL=/usr/local/bin/gpiotool
 
-CHECK_VER(){
+################################################
+# Offload driver                               #
+################################################
+unbindDriver()
+{
+
+}
+
+checkVersion()
+{
 	echo -e "\n*****Current Version*****"
 	ret=`$IPMICMD 0x08 0xD5`
     DELAY 0.1
 	echo $ret
 }
 
-WR_ISP_KEY(){
-	echo -e "\n*****Write ISP Key*****"
-	$IPMICMD 0x0 0xD1 0x49 0x6E 0x76 0x74
-	DELAY 0.15
-}
-
-BOOT_PSU_OS(){
-	echo -e "\n*****Boot PSU ISP OS*****"
-	$IPMICMD 0x0 0xD2 0x02
-	DELAY 2.5
-}
-
-RESTART(){
-	echo -e "\n*****Restart PSU ISP OS*****"
-	$IPMICMD 0x0 0xD2 0x01
-    DELAY 4.6
-}
-
-REBOOT_PSU(){
+reboot()
+{
     echo -e "\n*****Reboot PSU*****"
 	$IPMICMD 0x0 0xD2 0x03
     DELAY 3
 }
 
-TRANS_DATA(){
+transferData()
+{
 	echo "Transfer $PSU_IMG from bin file format to BMC hex data..."
 	rm -rf $BMCDATA
 	$HEXDUMP_TOOL -c 32 -ps "$PSU_IMG"  > $BMCDATA
@@ -81,7 +95,8 @@ TRANS_DATA(){
 	DELAY 1
 }
 
-WR_DATA(){
+writeData()
+{
 	TRANS_DATA
 
 	RAW=`awk 'END {print NR}' $BMCDATA`
@@ -103,8 +118,9 @@ WR_DATA(){
 	rm -f $BMCDATA
 }
 
-CHECK_DATA(){
-        echo -e "\n*****Check response is 0x${1}*****"
+checkData()
+{
+    echo -e "\n*****Check response is 0x${1}*****"
 
 	#echo "$IPMICMD 0x01 0xD2"
     ret=`$IPMICMD 0x01 0xD2`
@@ -118,18 +134,21 @@ CHECK_DATA(){
 	DELAY 0.36
 }
 
-DELAY(){
+delay()
+{
 	echo -e "delay $1 seconds ..."
 	sleep $1
 }
 
-DO(){
+DO()
+{
 #	echo " $1"
 	$1 > /dev/null 2>&1
 	if [ "$?" != "0" ]; then echo " [ERROR] $1, Command FAIL!"; exit; fi
 }
 
-STOP_PSU_SCANNING(){
+disableRecieveData()
+{
     echo "Stop sensor scanning of all PSU sensors..."
     $GPIO_TOOL  --set-gpios-dir-output 98
     $GPIO_TOOL  --set-gpios-dir-output 101
@@ -139,7 +158,8 @@ STOP_PSU_SCANNING(){
     sleep 1
 }
 
-START_PSU_SCANNING(){
+enableRecieveData()
+{
     echo "Start sensor scanning of all PSU sensors..."
     $GPIO_TOOL  --set-data-high 98
     $GPIO_TOOL  --set-data-high 101
@@ -149,7 +169,8 @@ START_PSU_SCANNING(){
     sleep 1
 }
 
-FW_UPDATE(){
+updateFW()
+{
 	echo "[Start to Update Liteon PSU FW]"
 	CHECK_VER
 	STOP_PSU_SCANNING
@@ -165,14 +186,31 @@ FW_UPDATE(){
 	CHECK_VER
 }
 
-#----------Main---------
-#Check PSU Slave Address
-if [ "$2" == "1" ]; then
-	PSU_SLAVE="0xB0"
-	echo " PSU Slave Address = $PSU_SLAVE"
-elif [ "$2" == "2" ]; then
-    PSU_SLAVE="0xB2"
-	echo " PSU Slave Address = $PSU_SLAVE"
+Help()
+{
+    # Display all items
+    echo "The script functions is here."
+    echo "-----------------------------"
+    echo "Syntax: scriptTemplate [-c|V]"
+    echo "Options:"
+    echo "g    Get device ID."
+    echo "usage: g {0xXX} to get device ID from specify slave address."
+    echo "u    Unbind VR controller driver"
+    echo "f    Flash VR controller."
+    echo "usage: f {0xXX} to flash VR controller with specify slave address"
+    echo "h    Print this Help."
+    
+}
+
+################################################
+# Main function                                #
+################################################
+if [ "$2" == VR_SLAVE_ADDRESS_1 ]; then
+    echo "Get device from VR slavce address $VR_SLAVE_ADDRESS_1"
+
+elif [ "$2" == VR_SLAVE_ADDRESS_2 ]; then
+    echo "Get device from VR slavce address $VR_SLAVE_ADDRESS_2"
+
 else
 	echo "[ERROR] Cannot find PSU_SLAVE!"
 fi
