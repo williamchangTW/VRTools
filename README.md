@@ -1,4 +1,5 @@
 # VRTools
+contributors: <`williamchangTW`>
 Implement a tool for VR operation.
 
 ***
@@ -6,10 +7,20 @@ Implement a tool for VR operation.
 NA
 
 ***
+## Target
+- [ ] Trying to update RAA228926 firmware via PMBus(I2C).
+    - [ ] Refer to PMBus spec documentation, and makes sure all command has right response.
+    - [ ] Refer to RAA228926 datasheet, and make sure all command has right output.
+        - [ ] Trying to write data via DMA register(Refer to RAA228926 programming guide).
+- [x] Automation test needs to convert a string with 16 characters to a string with 16 bytes in hexadecimal.
+    - [x] seperate string to 16 character
+    - [x] convert to hexadecimal character
+    - [x] concate all characters back to string
+
+***
 ## Files
 - `raa228926.sh`: This tool content the method to update the firmware in the VR controller(raa228926).
 - `strTohex.sh`: Convert string to hexadecimal representation.
-
 
 ***
 ### Reference
